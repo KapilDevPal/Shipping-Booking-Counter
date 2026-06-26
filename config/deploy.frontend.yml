@@ -1,0 +1,25 @@
+service: flightgo-frontend
+image: registry.yourdomain.com/flightgo/frontend
+
+servers:
+  web:
+    - YOUR_SERVER_IP
+
+proxy:
+  ssl: true
+  host: flightgo.app
+
+registry:
+  server: registry.yourdomain.com
+  username: <%= ENV["KAMAL_REGISTRY_USERNAME"] %>
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  dockerfile: apps/frontend/Dockerfile
+  context: apps/frontend
+
+healthcheck:
+  path: /
+  port: 80
+  interval: 10s

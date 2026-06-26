@@ -1,0 +1,234 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Outfit', 'Inter', sans-serif;
+  
+  --color-brand-50: #f0f7ff;
+  --color-brand-100: #e0effe;
+  --color-brand-500: #0b86fc;
+  --color-brand-600: #026bda;
+  --color-brand-700: #0256b1;
+  --color-brand-800: #054893;
+  --color-brand-900: #0a3c75;
+  
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-850: #162031;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100 font-sans antialiased selection:bg-brand-500/30 selection:text-brand-100 min-h-screen overflow-x-hidden;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(11, 134, 252, 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.08) 0px, transparent 50%);
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-950;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-800 rounded-full border-2 border-slate-950 hover:bg-slate-700 transition-colors;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 shadow-2xl;
+  }
+  .glass-panel-light {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;
+  }
+  .glass-input {
+    @apply bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50 transition-all duration-200;
+  }
+  .glass-button-primary {
+    @apply bg-brand-600 hover:bg-brand-500 text-white font-medium rounded-xl px-5 py-3 shadow-lg shadow-brand-500/20 active:scale-[0.98] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .glass-button-secondary {
+    @apply bg-slate-900/80 hover:bg-slate-850 text-slate-200 border border-slate-800 font-medium rounded-xl px-5 py-3 active:scale-[0.98] transition-all duration-200 cursor-pointer;
+  }
+  .text-glow {
+    text-shadow: 0 0 20px rgba(11, 134, 252, 0.3);
+  }
+}
+
+/* Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* ==========================================
+   Premium Light Mode Theme Styles
+   ========================================== */
+body.light {
+  background-color: #f8fafc !important; /* slate-50 */
+  color: #0f172a !important; /* slate-900 */
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(11, 134, 252, 0.04) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.04) 0px, transparent 50%) !important;
+}
+
+/* Background Overrides */
+body.light .bg-slate-950 {
+  background-color: #f8fafc !important;
+}
+body.light .bg-slate-950\/80 {
+  background-color: #ffffff !important;
+}
+body.light .bg-slate-950\/40 {
+  background-color: rgba(241, 245, 249, 0.4) !important;
+}
+body.light .bg-slate-950\/60 {
+  background-color: rgba(248, 250, 252, 0.65) !important;
+}
+body.light .bg-slate-950\/50 {
+  background-color: rgba(248, 250, 252, 0.5) !important;
+}
+body.light .bg-slate-900 {
+  background-color: #ffffff !important;
+}
+body.light .bg-slate-900\/80 {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+}
+body.light .bg-slate-900\/60 {
+  background-color: rgba(255, 255, 255, 0.6) !important;
+}
+body.light .bg-slate-900\/50 {
+  background-color: rgba(255, 255, 255, 0.5) !important;
+}
+body.light .bg-slate-800 {
+  background-color: #f1f5f9 !important; /* slate-100 */
+}
+body.light .bg-slate-900\/30 {
+  background-color: rgba(241, 245, 249, 0.3) !important;
+}
+
+/* Border Overrides */
+body.light .border-slate-800 {
+  border-color: #e2e8f0 !important; /* slate-200 */
+}
+body.light .border-slate-800\/80 {
+  border-color: rgba(226, 232, 240, 0.8) !important;
+}
+body.light .border-slate-850 {
+  border-color: #e2e8f0 !important; /* slate-200 */
+}
+body.light .border-slate-900 {
+  border-color: #f1f5f9 !important; /* slate-100 */
+}
+body.light .border-slate-700 {
+  border-color: #cbd5e1 !important; /* slate-300 */
+}
+
+/* Text Overrides */
+body.light .text-slate-100 {
+  color: #0f172a !important; /* slate-900 */
+}
+body.light .text-slate-200 {
+  color: #1e293b !important; /* slate-800 */
+}
+body.light .text-slate-300 {
+  color: #334155 !important; /* slate-700 */
+}
+body.light .text-slate-400 {
+  color: #475569 !important; /* slate-600 */
+}
+body.light .text-slate-500 {
+  color: #64748b !important; /* slate-500 */
+}
+body.light .text-white {
+  color: #0f172a !important;
+}
+body.light .text-slate-200\/60 {
+  color: rgba(30, 41, 59, 0.6) !important;
+}
+
+/* Hover Overrides */
+body.light .hover\:text-white:hover {
+  color: #0b86fc !important; /* Brand accent hover */
+}
+body.light .hover\:bg-slate-800:hover {
+  background-color: #f1f5f9 !important;
+}
+body.light .hover\:bg-slate-850:hover {
+  background-color: #f8fafc !important;
+}
+body.light .hover\:border-slate-700:hover {
+  border-color: #cbd5e1 !important;
+}
+
+/* Active Menu Highlights */
+body.light .text-brand-400 {
+  color: #026bda !important; /* brand-600 */
+}
+body.light .bg-brand-500\/10 {
+  background-color: rgba(11, 134, 252, 0.08) !important;
+}
+
+/* Glass panel and input styling updates */
+body.light .glass-panel {
+  background-color: rgba(255, 255, 255, 0.65) !important;
+  border-color: rgba(226, 232, 240, 0.8) !important;
+  box-shadow: 0 20px 40px -15px rgba(148, 163, 184, 0.12) !important;
+}
+body.light .glass-input {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+body.light .glass-input:focus {
+  border-color: #0b86fc !important;
+  box-shadow: 0 0 0 2px rgba(11, 134, 252, 0.15) !important;
+}
+body.light .glass-input::placeholder {
+  color: #94a3b8 !important;
+}
+body.light .glass-button-secondary {
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+body.light .glass-button-secondary:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* Extra card & badge visual enhancements */
+body.light .shadow-2xl {
+  box-shadow: 0 25px 50px -12px rgba(148, 163, 184, 0.08) !important;
+}
+body.light .shadow-inner {
+  box-shadow: inset 0 2px 4px 0 rgba(148, 163, 184, 0.06) !important;
+}
+body.light .bg-slate-900\/40 {
+  background-color: rgba(241, 245, 249, 0.4) !important;
+}
+body.light .text-glow {
+  text-shadow: 0 0 20px rgba(11, 134, 252, 0.1) !important;
+}
+body.light select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
