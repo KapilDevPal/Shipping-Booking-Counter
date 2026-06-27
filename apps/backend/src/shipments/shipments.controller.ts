@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ShipmentsService, BookShipmentDto } from './shipments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserRole } from '@prisma/client';
+import type { Response } from 'express';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Shipments')
 @Controller('shipments')
@@ -44,5 +46,21 @@ export class ShipmentsController {
     @CurrentUser('branchId') branchId: string | null
   ) {
     return this.shipmentsService.getShipments(userId, role, companyId, franchiseId, branchId);
+  }
+
+  @Public()
+  @Get(':id/label')
+  @ApiOperation({ summary: 'Download AWB PDF shipping label' })
+  async downloadLabel(
+    @Param('id') id: string,
+    @Res() res: Response
+  ) {
+    const pdfBuffer = await this.shipmentsService.generatePdfLabel(id);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename="label-${id}.pdf"`,
+      'Content-Length': pdfBuffer.length,
+    });
+    res.end(pdfBuffer);
   }
 }

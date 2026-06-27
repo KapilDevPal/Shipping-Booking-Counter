@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/com
 import { IsString, IsNumber, IsOptional, IsBoolean, IsEnum, Min } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '@prisma/client';
+import PDFDocument from 'pdfkit';
 
 export class BookShipmentDto {
   @IsOptional()
@@ -202,12 +203,11 @@ export class ShipmentsService {
         });
       }
 
-      // Generate AWB and Mock Label PDF URL
+      // Generate AWB
       const awbNo = `FG-${Math.floor(10000000 + Math.random() * 90000000)}`;
-      const labelUrl = `https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf`;
 
       // Create Shipment
-      const shipment = await tx.shipment.create({
+      let shipment = await tx.shipment.create({
         data: {
           referenceNo: dto.referenceNo,
           status: 'BOOKED',
@@ -232,11 +232,18 @@ export class ShipmentsService {
           nonStandardGoods: dto.nonStandardGoods || false,
           remarks: dto.remarks,
           awbNo,
-          labelUrl,
+          labelUrl: '', // Will update next
           bookedAt: new Date(),
           branchId: branchId!,
           createdById: userId,
         },
+      });
+
+      // Update with the correct relative labelUrl using its ID
+      const labelUrl = `/api/shipments/${shipment.id}/label`;
+      shipment = await tx.shipment.update({
+        where: { id: shipment.id },
+        data: { labelUrl },
       });
 
       // Create ShipmentRate entry
@@ -308,5 +315,134 @@ export class ShipmentsService {
     }
 
     return [];
+  }
+
+  async generatePdfLabel(shipmentId: string): Promise<Buffer> {
+    const shipment = await this.prisma.shipment.findUnique({
+      where: { id: shipmentId },
+      include: {
+        branch: {
+          include: {
+            franchise: {
+              include: {
+                company: true,
+              },
+            },
+          },
+        },
+        rates: {
+          where: { isSelected: true },
+          include: { partner: true },
+        },
+      },
+    });
+
+    if (!shipment) {
+      throw new BadRequestException('Shipment not found');
+    }
+
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ size: 'A6', margin: 15 });
+      const chunks: Buffer[] = [];
+
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', (err) => reject(err));
+
+      // Draw label border
+      doc.rect(5, 5, doc.page.width - 10, doc.page.height - 10).stroke();
+
+      // Branding Header
+      doc.fontSize(12).font('Helvetica-Bold').fillColor('#0b86fc').text('FLIGHTGO EXPRESS', 15, 15);
+      doc.fontSize(8).font('Helvetica').fillColor('#64748b').text('INTERNATIONAL AIR WAYBILL', 15, 28);
+      
+      // Divider
+      doc.moveTo(5, 40).lineTo(doc.page.width - 5, 40).stroke();
+
+      // Mock Barcode block (Very cool!)
+      doc.fillColor('#000000');
+      let xOffset = 30;
+      const barcodeWidths = [2, 1, 3, 1, 2, 4, 1, 2, 1, 3, 2, 1, 4, 2, 1, 3, 1, 2, 1, 3, 2, 2, 1, 4, 1, 2];
+      for (const w of barcodeWidths) {
+        doc.rect(xOffset, 50, w, 28).fill();
+        xOffset += w + 2;
+      }
+      
+      // AWB text under barcode
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('#000000').text(shipment.awbNo || 'PENDING', 15, 83, { align: 'center', width: doc.page.width - 30 });
+
+      // Divider
+      doc.moveTo(5, 98).lineTo(doc.page.width - 5, 98).stroke();
+
+      // SHIP FROM (Left) & SHIP TO (Right)
+      const colWidth = (doc.page.width - 40) / 2;
+      
+      // From info
+      doc.fontSize(8).font('Helvetica-Bold').fillColor('#0f172a').text('SHIP FROM:', 15, 105);
+      const branchName = shipment.branch?.name || 'FlightGo Branch';
+      const companyName = shipment.branch?.franchise?.company?.name || 'FlightGo Corp';
+      doc.fontSize(7).font('Helvetica').text(companyName, 15, 116, { width: colWidth });
+      doc.text(branchName, 15, 125, { width: colWidth });
+      doc.text(`${shipment.fromCity || ''}, ${shipment.fromState || ''}`, 15, 134, { width: colWidth });
+      doc.text(`PIN: ${shipment.fromPincode || '-'}`, 15, 143, { width: colWidth });
+
+      // To info
+      const rightColX = 15 + colWidth + 10;
+      doc.fontSize(8).font('Helvetica-Bold').text('SHIP TO:', rightColX, 105);
+      doc.fontSize(7).font('Helvetica').text(shipment.toCountry || 'Destination Country', rightColX, 116, { width: colWidth });
+      doc.text(shipment.toCity || 'Zone Standard', rightColX, 125, { width: colWidth });
+      if (shipment.toState) {
+        doc.text(shipment.toState, rightColX, 134, { width: colWidth });
+      }
+      doc.text(`ZIP: ${shipment.toZipcodeId || '-'}`, rightColX, 143, { width: colWidth });
+
+      // Divider
+      doc.moveTo(5, 160).lineTo(doc.page.width - 5, 160).stroke();
+
+      // SHIPMENT SPECIFICATIONS
+      doc.fontSize(8).font('Helvetica-Bold').text('SHIPMENT DETAILS:', 15, 166);
+      
+      const partnerName = shipment.rates?.find(r => r.isSelected)?.serviceName || 'FlightGo Express Standard';
+      doc.fontSize(7).font('Helvetica').text(`Carrier & Service: ${partnerName}`, 15, 177);
+      doc.text(`Package Type: ${shipment.packageType}`, 15, 186);
+      doc.text(`Transit Mode: ${shipment.shipmentType}`, 15, 195);
+      doc.text(`Actual Weight: ${shipment.weight} kg`, 15, 204);
+      doc.text(`Volumetric Weight: ${shipment.volumetricWeight || '0.0'} kg`, 15, 213);
+      
+      // Dimensions
+      const dims = `${shipment.length || 0} x ${shipment.width || 0} x ${shipment.height || 0} cm`;
+      doc.text(`Dimensions (LxWxH): ${dims}`, 15, 222);
+
+      // Booked date
+      const bookedDateStr = shipment.bookedAt
+        ? new Date(shipment.bookedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true })
+        : new Date(shipment.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true });
+      doc.text(`Booked At: ${bookedDateStr} IST`, 15, 231);
+
+      // Divider
+      doc.moveTo(5, 245).lineTo(doc.page.width - 5, 245).stroke();
+
+      // ADD-ON SERVICES
+      doc.fontSize(7).font('Helvetica-Bold').text('SPECIAL INSTRUCTIONS / OPTIONS:', 15, 250);
+      const options: string[] = [];
+      if (shipment.signatureRequired) options.push('Signature Required');
+      if (shipment.specialHandling) options.push('Special Handling');
+      if (shipment.insurance) options.push('Insured Cover');
+      if (shipment.nonStandardGoods) options.push('Non-Standard');
+      
+      const optionsText = options.length > 0 ? options.join(', ') : 'None';
+      doc.fontSize(7).font('Helvetica').text(optionsText, 15, 260, { width: doc.page.width - 30 });
+
+      if (shipment.remarks) {
+        doc.fontSize(7).font('Helvetica-Bold').text('Remarks:', 15, 275);
+        doc.font('Helvetica-Oblique').text(`"${shipment.remarks}"`, 15, 283, { width: doc.page.width - 30 });
+      }
+
+      // Bottom footer / signature line
+      doc.moveTo(5, 335).lineTo(doc.page.width - 5, 335).stroke();
+      doc.fontSize(6).font('Helvetica').fillColor('#64748b').text('Declaration: The shipper certifies that the details of this airwaybill are correct and that the shipment does not contain any dangerous goods.', 15, 342, { width: doc.page.width - 30 });
+
+      doc.end();
+    });
   }
 }
