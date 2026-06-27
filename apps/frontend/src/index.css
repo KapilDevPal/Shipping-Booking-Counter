@@ -232,3 +232,22 @@ body.light select option {
   color: #0f172a !important;
 }
 
+/* Carrier Cards styling in light mode */
+body.light .carrier-card {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+body.light .carrier-card:hover {
+  border-color: #cbd5e1 !important;
+}
+body.light .carrier-card button {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+body.light .carrier-card button:hover {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  color: #047857 !important;
+}
+

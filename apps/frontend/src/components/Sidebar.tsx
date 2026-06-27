@@ -85,18 +85,38 @@ export default function Sidebar() {
           </NavLink>
         ))}
 
-        {/* Admin only views mock link */}
-        {user?.role === 'SUPER_ADMIN' && (
+        {/* Admin section — visible to admins */}
+        {(user?.role === 'SUPER_ADMIN' || user?.role === 'COMPANY_ADMIN') && (
           <div className="pt-4 mt-4 border-t border-slate-800 space-y-1.5">
             <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
               Administration
             </p>
-            <a href="#users" className="flex items-center px-4 py-2 text-xs font-medium text-slate-500 hover:text-slate-300 rounded-lg">
-              <Users size={14} className="mr-2" /> Users Directory
-            </a>
-            <a href="#settings" className="flex items-center px-4 py-2 text-xs font-medium text-slate-500 hover:text-slate-300 rounded-lg">
-              <Settings size={14} className="mr-2" /> Global Settings
-            </a>
+            <NavLink
+              to="/admin/users"
+              className={({ isActive }) =>
+                `flex items-center px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 group ${
+                  isActive
+                    ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
+                }`
+              }
+            >
+              <Users className="mr-3 h-5 w-5 shrink-0" />
+              Users Directory
+            </NavLink>
+            <NavLink
+              to="/admin/settings"
+              className={({ isActive }) =>
+                `flex items-center px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 group ${
+                  isActive
+                    ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
+                }`
+              }
+            >
+              <Settings className="mr-3 h-5 w-5 shrink-0" />
+              Global Settings
+            </NavLink>
           </div>
         )}
       </nav>

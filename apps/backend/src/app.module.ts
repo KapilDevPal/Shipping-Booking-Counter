@@ -11,6 +11,7 @@ import { LocationsModule } from './locations/locations.module';
 import { RatesModule } from './rates/rates.module';
 import { FlightGoModule } from './integrations/flightgo/flightgo.module';
 import { ShipmentsModule } from './shipments/shipments.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ShipmentsModule } from './shipments/shipments.module';
     RatesModule,
     FlightGoModule,
     ShipmentsModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

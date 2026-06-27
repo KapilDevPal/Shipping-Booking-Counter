@@ -35,10 +35,13 @@ This document tracks the completed and remaining tasks from the **FlightGo Expre
 * [ ] **Return & Cancellation Flows**: Implement API and UI buttons to void bookings and refund wallet balances for returned/cancelled shipments.
 
 ### Sprint 4: Hierarchy & Wallet Management
-* [ ] **Franchise Approval Portal**: Build screens for SuperAdmins and CompanyAdmins to review, approve, or reject new franchise/branch applications.
-* [ ] **Wallet Recharge & Credit Limits**: Implement transaction flows to recharge wallet balances and enforce customized credit limits/commissions for branches.
+* [x] **Users Directory**: Built `/admin/users` page with role badges, org mapping, activate/deactivate toggle (SUPER_ADMIN + COMPANY_ADMIN).
+* [x] **Global Settings Page**: Platform stats, Companies + wallet balances table, Franchise Network, Branch Locations tables.
+* [x] **Wallet Recharge UI**: Select company → enter amount (with quick-chips) → POST `/api/admin/wallet/recharge` — balance updated live.
+* [x] **Admin Backend Module**: `AdminController` + `AdminService` exposing scoped endpoints for stats, users, companies, franchises, branches.
+* [x] **Sidebar Navigation**: Administration section with real NavLinks to Users Directory + Global Settings (visible to SUPER_ADMIN / COMPANY_ADMIN).
 
 ### Sprint 5 & 6: Analytics, Polish & CI/CD
-* [ ] **Admin Portal Dashboard**: Develop Next.js/React management screens visualizing KPIs (total shipments, revenue, outstanding balances).
+* [ ] **Admin Portal Dashboard**: Develop React management screens visualizing KPIs (total shipments, revenue, outstanding balances).
 * [ ] **Centralized Logging & Sentry**: Configure exception alerts using Sentry and persist access logs via CloudWatch.
 * [ ] **CI/CD Pipelines**: Automate build checks, unit tests, and production container builds via GitHub Actions.

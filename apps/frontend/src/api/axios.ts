@@ -98,3 +98,10 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export const getFullLabelUrl = (relativeUrl: string | null | undefined): string => {
+  if (!relativeUrl) return '';
+  if (relativeUrl.startsWith('http')) return relativeUrl;
+  const backendBase = API_BASE_URL.replace(/\/api$/, '');
+  return `${backendBase}${relativeUrl}`;
+};

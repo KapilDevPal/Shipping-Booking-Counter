@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../api/axios';
+import { apiClient, getFullLabelUrl } from '../api/axios';
 import { 
   Search, 
   Filter, 
@@ -150,13 +150,18 @@ export default function Shipments() {
                         </span>
                       </td>
                       <td className="py-4 px-6 text-slate-400 text-xs">
-                        {new Date(s.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        <div>
+                          {new Date(s.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-0.5 font-medium">
+                          {new Date(s.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </div>
                       </td>
                       <td className="py-4 px-6 text-right space-x-2">
                         {/* Quick Label PDF Download */}
                         {s.labelUrl && (
                           <a
-                            href={s.labelUrl}
+                            href={getFullLabelUrl(s.labelUrl)}
                             target="_blank"
                             rel="noreferrer"
                             title="Download label"
@@ -324,7 +329,7 @@ export default function Shipments() {
             {selectedShipment.labelUrl && (
               <div className="p-6 border-t border-slate-800 bg-slate-950/20">
                 <a
-                  href={selectedShipment.labelUrl}
+                  href={getFullLabelUrl(selectedShipment.labelUrl)}
                   target="_blank"
                   rel="noreferrer"
                   className="w-full flex items-center justify-center px-4 py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold shadow-lg shadow-brand-500/20 transition-all duration-200"

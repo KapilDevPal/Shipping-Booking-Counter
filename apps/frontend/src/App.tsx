@@ -4,6 +4,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import BookingCounter from './pages/BookingCounter';
 import Shipments from './pages/Shipments';
+import UsersDirectory from './pages/UsersDirectory';
+import GlobalSettings from './pages/GlobalSettings';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 
@@ -57,6 +59,8 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/bookings/new" element={<BookingCounter />} />
           <Route path="/shipments" element={<Shipments />} />
+          <Route path="/admin/users" element={<UsersDirectory />} />
+          <Route path="/admin/settings" element={<GlobalSettings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
 

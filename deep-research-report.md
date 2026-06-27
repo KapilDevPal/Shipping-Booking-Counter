@@ -194,12 +194,12 @@ We will add a `tenant_id` (company_id) or `branch_id` to most tables for data is
 ```mermaid
 sequenceDiagram
     actor MobileUser
-    participant FlutterApp
+    participant React
     participant Backend
     participant FlightGoAPI
     participant DHLAPI
-    MobileUser->>FlutterApp: Fill and submit booking details
-    FlutterApp->>Backend: POST /api/rates (country, zip, weight, dims, type)
+    MobileUser->>React: Fill and submit booking details
+    React->>Backend: POST /api/rates (country, zip, weight, dims, type)
     alt FlightGo Rate
         Backend->>FlightGoAPI: GET /rates?... (FlightGo credentials)
         FlightGoAPI-->>Backend: {rates, transit_days}
@@ -207,8 +207,8 @@ sequenceDiagram
         Backend->>DHLAPI: POST /v3/rate with details
         DHLAPI-->>Backend: {rates, transit_days}
     end
-    Backend-->>FlutterApp: {rateOptions: [ {carrier, service, cost, ETA}, ... ]}
-    FlutterApp-->>MobileUser: Display rate cards (cheapest/fastest)
+    Backend-->>React: {rateOptions: [ {carrier, service, cost, ETA}, ... ]}
+    React-->>MobileUser: Display rate cards (cheapest/fastest)
 ```
 
 **Shipment Booking Flow:** (Planned for Sprint 2)
@@ -216,12 +216,12 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor MobileUser
-    participant FlutterApp
+    participant React
     participant Backend
     participant FlightGoAPI
     participant DHLAPI
-    MobileUser->>FlutterApp: Confirm and book shipment
-    FlutterApp->>Backend: POST /api/shipments (details)
+    MobileUser->>React: Confirm and book shipment
+    React->>Backend: POST /api/shipments (details)
     alt Using FlightGo
         Backend->>FlightGoAPI: POST /shipments/create...
         FlightGoAPI-->>Backend: {trackingNo, labelUrl}
@@ -229,8 +229,8 @@ sequenceDiagram
         Backend->>DHLAPI: POST /v2/shipments...
         DHLAPI-->>Backend: {trackingNo, labelUrl}
     end
-    Backend-->>FlutterApp: {shipmentId, trackingNo}
-    FlutterApp-->>MobileUser: Show confirmation & provide label
+    Backend-->>React: {shipmentId, trackingNo}
+    React-->>MobileUser: Show confirmation & provide label
 ```
 
 These flows ensure the mobile app remains thin, delegating shipping logic to the backend, which abstracts the two carrier APIs.  

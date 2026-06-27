@@ -103,7 +103,7 @@ export class FlightGoService {
       this.logger.log(`getZipcodes: Requesting real FlightGo API for country=${countryCode}...`);
       const response = await this.client.post('/api/location/zipcode', {
         api_key: apiKey,
-        country_code: countryCode,
+        country: countryCode,
       });
 
       if (response.data?.status !== 'success') {

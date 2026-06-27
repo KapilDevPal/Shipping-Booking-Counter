@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '../api/axios';
+import { apiClient, getFullLabelUrl } from '../api/axios';
 import { 
   Sparkles, 
   Search, 
@@ -557,7 +557,7 @@ export default function BookingCounter() {
                     return (
                       <div 
                         key={`${q.partnerCode}-${q.serviceCode}`}
-                        className="bg-slate-950/80 border border-slate-850 hover:border-slate-700 rounded-2xl p-5 space-y-4 transition-all duration-200"
+                        className="bg-slate-950/80 border border-slate-850 hover:border-slate-700 rounded-2xl p-5 space-y-4 transition-all duration-200 carrier-card"
                       >
                         {/* Quote Header */}
                         <div className="flex items-start justify-between">
@@ -656,7 +656,7 @@ export default function BookingCounter() {
             {/* Print and Close Actions */}
             <div className="flex space-x-3">
               <a
-                href={bookedShipment.labelUrl}
+                href={getFullLabelUrl(bookedShipment.labelUrl)}
                 target="_blank"
                 rel="noreferrer"
                 className="flex-1 flex items-center justify-center px-4 py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold shadow-lg shadow-brand-500/20 transition-all duration-200"
