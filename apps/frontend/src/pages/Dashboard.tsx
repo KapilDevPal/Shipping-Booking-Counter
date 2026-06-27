@@ -43,6 +43,14 @@ export default function Dashboard() {
     { name: 'Sun', Bookings: totalBooked },
   ];
 
+  const scopeLabels: Record<string, string> = {
+    SUPER_ADMIN:     'Viewing all data across the entire platform.',
+    COMPANY_ADMIN:   'Viewing data for your company.',
+    FRANCHISE_ADMIN: 'Viewing data for your franchise.',
+    BRANCH_STAFF:    'Viewing data for your branch.',
+  };
+  const scopeLabel = scopeLabels[user?.role ?? ''] ?? 'Viewing your activity.';
+
   return (
     <div className="space-y-8 animate-fade-in select-none">
       {/* Top Banner Greeting */}
@@ -52,7 +60,7 @@ export default function Dashboard() {
             Welcome back, {user?.name.split(' ')[0]}!
           </h1>
           <p className="text-slate-400 text-sm">
-            Here's what's happening at your terminal node today.
+            {scopeLabel}
           </p>
         </div>
       </div>

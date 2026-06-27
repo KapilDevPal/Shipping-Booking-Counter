@@ -1,11 +1,11 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { apiClient } from '../api/axios';
-import { Ship, Lock, Mail, AlertCircle, ArrowRight } from 'lucide-react';
+import { Ship, Lock, Mail, AlertCircle, ArrowRight, Sun, Moon, ChevronLeft } from 'lucide-react';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -19,6 +19,17 @@ export default function Login() {
   const navigate = useNavigate();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLight, setIsLight] = useState(() => localStorage.getItem('theme') === 'light');
+
+  useEffect(() => {
+    if (isLight) {
+      document.body.classList.add('light');
+      localStorage.setItem('theme', 'light');
+    } else {
+      document.body.classList.remove('light');
+      localStorage.setItem('theme', 'dark');
+    }
+  }, [isLight]);
 
   const {
     register,
@@ -57,6 +68,22 @@ export default function Login() {
       {/* Decorative Blur Backgrounds */}
       <div className="absolute w-96 h-96 bg-brand-500/10 rounded-full blur-3xl -top-12 -left-12 pointer-events-none" />
       <div className="absolute w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl -bottom-12 -right-12 pointer-events-none" />
+
+      {/* Top nav overlay */}
+      <div className="fixed top-4 right-4 flex items-center gap-2 z-50">
+        <button
+          onClick={() => setIsLight(!isLight)}
+          className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
+          aria-label="Toggle theme"
+        >
+          {isLight ? <Moon size={18} /> : <Sun size={18} />}
+        </button>
+      </div>
+      <div className="fixed top-4 left-4 z-50">
+        <Link to="/" className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors">
+          <ChevronLeft size={16} /> Back to home
+        </Link>
+      </div>
 
       <div className="w-full max-w-md glass-panel rounded-3xl p-8 relative z-10 border border-slate-800/80">
         {/* Header Branding */}
@@ -167,6 +194,12 @@ export default function Login() {
               <p className="font-mono text-slate-500">admin123</p>
             </div>
           </div>
+          <p className="text-center text-xs text-slate-500 mt-4">
+            New here?{' '}
+            <Link to="/signup" className="text-brand-400 font-semibold hover:text-brand-300 transition-colors">
+              Create a company account
+            </Link>
+          </p>
         </div>
       </div>
     </div>

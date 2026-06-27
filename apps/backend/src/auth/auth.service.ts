@@ -7,7 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
-import { LoginDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +16,48 @@ export class AuthService {
     private jwtService: JwtService,
     private config: ConfigService,
   ) {}
+
+  async register(dto: RegisterDto) {
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (existing) throw new BadRequestException('Email already registered');
+
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+    const companyCode = dto.companyName
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 8);
+
+    // Create company + admin user + wallet atomically
+    const company = await this.prisma.company.create({
+      data: {
+        name: dto.companyName,
+        code: companyCode,
+        wallets: { create: { balance: 0, currency: 'INR' } },
+      },
+    });
+
+    const user = await this.prisma.user.create({
+      data: {
+        name: dto.name,
+        email: dto.email,
+        passwordHash,
+        role: 'COMPANY_ADMIN',
+        companyId: company.id,
+        isActive: true,
+      },
+      select: {
+        id: true, email: true, name: true, role: true,
+        isActive: true, companyId: true, franchiseId: true, branchId: true,
+      },
+    });
+
+    const tokens = await this.generateTokens(user.id, user.email, user.role as any);
+    await this.prisma.refreshToken.create({
+      data: { token: tokens.refreshToken, userId: user.id, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+    });
+
+    return { ...tokens, user };
+  }
 
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({

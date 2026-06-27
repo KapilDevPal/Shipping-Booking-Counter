@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
+import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import BookingCounter from './pages/BookingCounter';
 import Shipments from './pages/Shipments';
@@ -36,13 +38,9 @@ function ProtectedLayout() {
   );
 }
 
-function PublicRoute() {
+function AuthRoute() {
   const { isAuthenticated } = useAuthStore();
-
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
   return <Outlet />;
 }
 
@@ -50,9 +48,13 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        {/* Public Auth Routes */}
-        <Route element={<PublicRoute />}>
+        {/* Always-public landing page */}
+        <Route path="/" element={<LandingPage />} />
+
+        {/* Auth routes (redirect to dashboard if logged in) */}
+        <Route element={<AuthRoute />}>
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
         </Route>
 
         {/* Protected Dashboard Routes */}
@@ -63,11 +65,11 @@ export default function App() {
           <Route path="/admin/users" element={<UsersDirectory />} />
           <Route path="/admin/franchises" element={<FranchiseManagement />} />
           <Route path="/admin/settings" element={<GlobalSettings />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
 
         {/* Fallback */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );

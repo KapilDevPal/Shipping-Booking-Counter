@@ -1,273 +1,236 @@
-# FlightGo Express — Developer Guide
+# FlightGo Express — Developer & User Guide
 
-> Franchise Platform for managing shipments, wallets, carrier rates, and branch networks.
-
----
-
-## Prerequisites
-
-| Tool | Version | Purpose |
-|------|---------|---------|
-| Node.js | ≥ 20 | Backend & Frontend runtime |
-| npm | ≥ 10 | Package manager |
-| Docker + Docker Compose | latest | PostgreSQL + Redis |
-| Git | any | Version control |
+> Multi-carrier freight management platform for managing shipments, franchise networks, wallets, and branch operations.
 
 ---
 
 ## Quick Start
 
-### 1. Clone & Install
+### Prerequisites
+| Tool | Version |
+|------|---------|
+| Node.js | ≥ 20 |
+| npm | ≥ 10 |
+| Docker + Docker Compose | latest |
 
+### 1. Install Dependencies
 ```bash
-git clone <repo-url>
-cd transport
-
-# Backend dependencies
-cd apps/backend && npm install && cd ../..
-
-# Frontend dependencies
-cd apps/frontend && npm install && cd ../..
+cd apps/backend && npm install
+cd ../frontend && npm install
 ```
 
-### 2. Start Services (Docker)
-
+### 2. Start Services
 ```bash
-# Start PostgreSQL (port 5433) and Redis (port 6380)
+# Start PostgreSQL + Redis
 docker-compose up -d
-
-# Verify containers are healthy
-docker ps
 ```
 
-### 3. Environment Variables
-
-Copy the example env and configure:
-
+### 3. Environment Setup
 ```bash
 cp apps/backend/.env.example apps/backend/.env
+# Edit DATABASE_URL, JWT_SECRET, FLIGHTGO_API_KEY
 ```
 
-Key variables in `apps/backend/.env`:
-
-```env
-DATABASE_URL="postgresql://flightgo:flightgo@localhost:5433/flightgo_db"
-REDIS_URL="redis://localhost:6380"
-
-JWT_SECRET="your-secret-here"
-JWT_REFRESH_SECRET="your-refresh-secret-here"
-JWT_EXPIRES_IN="15m"
-JWT_REFRESH_EXPIRES_IN="7d"
-
-FLIGHTGO_API_KEY="your-flightgo-api-key"
-FLIGHTGO_API_URL="https://api.flightgo.com"
-
-NODE_ENV="development"
-PORT=3000
-FRONTEND_URL="http://localhost:5173"
-```
-
-### 4. Database Setup
-
+### 4. Database Seed
 ```bash
 cd apps/backend
-
-# Run migrations
 npx prisma migrate deploy
-
-# Seed with demo data (companies, users, wallet)
 npx prisma db seed
 ```
 
-### 5. Start Backend
-
+### 5. Start Servers
 ```bash
-cd apps/backend
-npm run start:dev      # Hot-reload dev server on http://localhost:3000
-```
+# Terminal 1 — Backend API (http://localhost:3000)
+cd apps/backend && npm run start:dev
 
-API Swagger docs: **http://localhost:3000/api/docs**
-
-### 6. Start Frontend
-
-```bash
-cd apps/frontend
-npm run dev            # Vite dev server on http://localhost:5173
+# Terminal 2 — Frontend UI (http://localhost:5173)
+cd apps/frontend && npm run dev
 ```
 
 ---
 
-## Demo Login Credentials
+## Application Entry Points
 
-| Role | Email | Password | Access |
-|------|-------|----------|--------|
-| **Super Admin** | `superadmin@flightgo.com` | `admin123` | Full platform control |
-| **Company Admin** | `companyadmin@flightgo.com` | `company123` | Company-wide management |
-| **Franchise Admin** | `franchiseadmin@flightgo.com` | `franchise123` | Franchise + branch view |
-| **Branch Staff** | `branchstaff@flightgo.com` | `counter123` | Booking counter access |
+| URL | Description |
+|-----|-------------|
+| `http://localhost:5173/` | **Landing Page** — public marketing page |
+| `http://localhost:5173/login` | Sign In page |
+| `http://localhost:5173/signup` | Create a new company account |
+| `http://localhost:5173/dashboard` | Main dashboard (protected) |
+| `http://localhost:3000/api/docs` | Swagger API explorer |
+
+---
+
+## Demo Credentials
+
+| Role | Email | Password | What they see |
+|------|-------|----------|---------------|
+| **Super Admin** | `superadmin@flightgo.com` | `admin123` | Everything across all companies |
+| **Company Admin** | `companyadmin@flightgo.com` | `company123` | Own company data only |
+| **Franchise Admin** | `franchiseadmin@flightgo.com` | `franchise123` | Own franchise data only |
+| **Branch Staff** | `branchstaff@flightgo.com` | `counter123` | Own branch data only |
+
+> **Data Scoping**: Each role sees only their own data. A Franchise Admin cannot see other franchises' shipments. A Branch Staff sees only their branch bookings.
 
 ---
 
 ## Role Capabilities
 
-### 🔴 Super Admin
-- View ALL companies, franchises, branches, users, and shipments
-- Access **Administration → Users Directory** (activate/deactivate any user)
-- Access **Administration → Global Settings** (wallet recharge, platform stats)
-- Create new shipments
-- View all rate quotes and carrier options
+### ⚡ Super Admin
+- Access the **Landing Page** and all protected pages
+- **Administration → Users Directory** — view, activate/deactivate any user
+- **Administration → Global Settings** — platform-wide stats + recharge any company wallet
+- **Administration → Franchise Network** — view/create franchises and branches for any company
+- View all shipments, franchises, branches, and companies
+- Book new shipments
 
-### 🟣 Company Admin
-- View all data scoped to their own company
-- Access **Administration → Users Directory** (manage company users)
-- Access **Administration → Global Settings** (view own company wallet)
-- Cannot recharge wallet (Super Admin only for cross-company recharge)
-- View franchises and branches under their company
+### 🏛️ Company Admin
+- All data scoped to their company
+- **Administration → Users Directory** — manage their company's users
+- **Administration → Franchise Network** — view/create franchises and branches within their company
+- Cannot see or modify other companies' data
+- Cannot recharge wallets (only Super Admin can)
 
-### 🟡 Franchise Admin
-- View data within their franchise
-- View branches belonging to their franchise
-- View shipments from their franchise branches
-- No access to Administration section
+### 🏢 Franchise Admin
+- All data scoped to their franchise
+- **Administration → Franchise Network** — view their franchise + create branches under it
+- Cannot access Users Directory or Global Settings
+- Can view shipments from their franchise's branches
 
-### 🔵 Branch Staff
-- Access **New Booking** — create shipments with carrier rate comparison
-- View **Shipments** — list and detail view of shipments for their branch
-- Download AWB PDF shipping labels
+### 🏪 Branch Staff
+- Access **New Booking** counter only
+- View **Shipments** for their branch only
+- Download AWB PDF labels
 - No access to Administration section
 
 ---
 
 ## Application Features
 
-### Dashboard
-Shows live KPIs: wallet balance, shipment count, carrier breakdown, recent activity.
+### 🏠 Landing Page (`/`)
+- Public marketing page — no login required
+- Shows platform features, how-it-works, role overview
+- **Sign In** and **Get Started** CTAs → login/signup pages
+- Dark/Light mode toggle in navbar
 
-### New Booking (Shipping Booking Counter)
-1. Fill shipment origin details (city, state, pincode)
-2. Select package type (Parcel / Document) and shipment mode (Express / Surface)
-3. Enter weight and dimensions (auto-calculates volumetric weight)
-4. Select destination country and ZIP code
-5. Click **Compare Carriers & Rates** → fetches live or mock pricing
-6. Select a carrier option and click **Book Shipment**
-7. Confirmation screen shows AWB number and download link for PDF label
+### 🔑 Login (`/login`)
+- Email + password form
+- Demo credential reference cards
+- Dark/Light mode toggle
+- Link to Sign Up
 
-### Shipments
-Full list of all booked shipments with:
-- Status badges (Booked → Picked Up → In Transit → Delivered)
-- Date + time of booking
+### 📝 Sign Up (`/signup`)
+- Creates a new **Company Admin** account
+- Automatically creates the company + wallet (₹0 balance)
+- Admin can then create franchises/branches from the dashboard
+
+### 📊 Dashboard (`/dashboard`)
+- KPI cards: Total Bookings, In Transit, Delivered, Drafts
+- Weekly booking chart
+- Role-scoped data — you always see only your network's data
+- Data scope label (e.g., "Viewing data for your franchise")
+
+### 📦 New Booking (`/bookings/new`) — Branch Staff + Super Admin
+1. Fill sender/receiver details
+2. Enter package weight + dimensions (volumetric auto-calculated)
+3. Select mode: Parcel/Document, Express/Surface
+4. Enter destination country + ZIP code
+5. Click **Compare Carriers & Rates** → live pricing grid
+6. Select carrier → **Book Shipment**
+7. Download AWB PDF label
+
+### 📋 Shipments (`/shipments`) — All roles (scoped)
+- Lists all shipments for the user's scope (branch/franchise/company/all)
+- Shows booking date + time, AWB number, carrier, status
+- Status badges: BOOKED → PICKED UP → IN TRANSIT → DELIVERED
+- Click row to expand details (package specs, route, services)
 - Download AWB label PDF
-- Waybill detail drawer (package specs, route, add-on services)
 
-### Administration → Users Directory *(Admin only)*
-- See all users with role badges, organisation mapping, and join date
-- Activate / Deactivate user accounts
-- Filterable by role (Super Admin, Company Admin, Franchise Admin, Branch Staff)
+### 👥 Users Directory (`/admin/users`) — Super Admin + Company Admin
+- Full list of users in scope with role badges
+- Organisation mapping: Company → Franchise → Branch
+- Search + filter by role
+- **Activate / Deactivate** user accounts (toggle)
 
-### Administration → Global Settings *(Admin only)*
-- **Platform stats**: user count, companies, franchises, branches, shipments, total wallet value
-- **Wallet Recharge**: select company → enter amount → top-up instantly
-- **Companies table**: live wallet balances per company
-- **Franchise Network**: franchise list with branch count
-- **Branch Locations**: branch list with staff count and shipment counts
+### 🌐 Global Settings (`/admin/settings`) — Super Admin + Company Admin
+- Platform stats: users, companies, franchises, branches, shipments, total wallet
+- **Wallet Recharge** — select company, enter amount (quick chips: ₹5k/10k/25k/50k/1L)
+- Companies table with live wallet balances
+- Franchise Network table
+- Branch Locations table
+
+### 🏢 Franchise Network (`/admin/franchises`) — Super Admin + Company Admin + Franchise Admin
+- **Franchises tab**: Card grid with company, contact, branch/staff count. "View branches →" cross-link.
+- **Branches tab**: Table with location (city/state/pincode), staff count, shipment count
+- Search across both views
+- **Create Franchise** form (SUPER_ADMIN / COMPANY_ADMIN)
+- **Create Branch** form (+ FRANCHISE_ADMIN)
 
 ---
 
 ## Organisational Hierarchy
 
 ```
-Company  (e.g. Flightgo India Pvt Ltd)
+Company  (e.g. FlightGo India Pvt Ltd)
  └── Franchise  (e.g. Goa Premium Franchise)
       └── Branch  (e.g. Panaji Central Branch)
            └── Branch Staff  (counter operators)
 ```
 
-**Who creates what?**
-
 | Action | Who can do it |
 |--------|--------------|
-| Create Company | Database seed / Super Admin via DB |
-| Create Franchise | Super Admin / Company Admin via API |
-| Create Branch | Super Admin / Company Admin / Franchise Admin via API |
-| Create User | Database seed / Super Admin via API |
+| Create Company | Sign Up (`/signup`) or Super Admin via API |
+| Create Franchise | Super Admin, Company Admin (Franchise Network page) |
+| Create Branch | Super Admin, Company Admin, Franchise Admin |
+| Create User | Super Admin via API / Swagger |
 | Book Shipment | Branch Staff, Super Admin |
-| Recharge Wallet | Super Admin (via Global Settings UI) |
+| Recharge Wallet | Super Admin (Global Settings) |
 | Deactivate User | Super Admin, Company Admin |
-| View All Data | Super Admin only |
-
-> **Note**: Creating franchises, branches, and users via UI forms is a Sprint 5 feature (Admin Portal). Currently they can be created directly via the Swagger API at `/api/docs` or via `prisma/seed.ts`.
 
 ---
 
-## API Endpoints Reference
+## API Reference
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
-| `/api/auth/login` | POST | Public | Login, get JWT tokens |
+| `/api/auth/register` | POST | Public | Create new company + admin account |
+| `/api/auth/login` | POST | Public | Login → get JWT tokens |
 | `/api/auth/refresh` | POST | Public | Refresh access token |
-| `/api/auth/logout` | POST | Bearer | Logout user |
-| `/api/rates/check` | POST | Bearer | Get carrier rate quotes |
-| `/api/locations/countries` | GET | Bearer | List supported countries |
-| `/api/locations/zipcodes` | GET | Bearer | List zipcodes for country |
+| `/api/auth/logout` | POST | Bearer | Logout |
+| `/api/rates/check` | POST | Bearer | Get live carrier rate quotes |
 | `/api/shipments/wallet` | GET | Bearer | Get wallet balance |
 | `/api/shipments/book` | POST | Bearer | Book a shipment |
 | `/api/shipments` | GET | Bearer | List shipments (role-scoped) |
-| `/api/shipments/:id/label` | GET | Public | Download AWB PDF label |
+| `/api/shipments/:id/label` | GET | Public | Download AWB PDF |
 | `/api/admin/stats` | GET | Bearer | Platform statistics |
 | `/api/admin/users` | GET | Bearer | List users (role-scoped) |
 | `/api/admin/users/:id/toggle-status` | PATCH | Bearer | Activate/deactivate user |
-| `/api/admin/companies` | GET | Bearer | List companies + wallets |
+| `/api/admin/companies` | GET | Bearer | Companies + wallet balances |
 | `/api/admin/wallet/recharge` | POST | Bearer | Recharge company wallet |
 | `/api/admin/franchises` | GET | Bearer | List franchises |
+| `/api/admin/franchises` | POST | Bearer | Create franchise |
 | `/api/admin/branches` | GET | Bearer | List branches |
+| `/api/admin/branches` | POST | Bearer | Create branch |
 
 ---
 
 ## Dark / Light Mode
 
-Click the **sun/moon toggle** in the top-right header bar to switch themes. The preference is persisted in your browser.
+- **Landing Page**: Toggle in navbar (top-right)
+- **Login / Sign Up**: Toggle button (top-right corner)
+- **Dashboard**: Toggle in header (sun/moon icon)
+- Theme is persisted in browser `localStorage`
 
 ---
 
 ## Production Deployment (Kamal)
 
 ```bash
-# Configure secrets
 cp .kamal/secrets.example .kamal/secrets
-# Edit .kamal/secrets with production values
+# Fill in production credentials
 
-# Deploy
-kamal deploy
-
-# Check logs
-kamal app logs
+kamal deploy       # Deploy to server
+kamal app logs     # View live logs
 ```
 
-See `.kamal/deploy.yml` for server and image configuration.
-
----
-
-## Project Structure
-
-```
-transport/
-├── apps/
-│   ├── backend/          # NestJS API (port 3000)
-│   │   ├── prisma/       # DB schema + migrations + seed
-│   │   └── src/
-│   │       ├── admin/    # Sprint 4: users dir + global settings
-│   │       ├── auth/     # JWT auth + refresh tokens
-│   │       ├── integrations/flightgo/  # FlightGo carrier API
-│   │       ├── locations/   # Countries + zipcodes
-│   │       ├── rates/       # Rate calculation service
-│   │       └── shipments/   # Booking + PDF label generation
-│   └── frontend/         # React + Vite (port 5173)
-│       └── src/
-│           ├── api/      # Axios client + interceptors
-│           ├── components/  # Sidebar, Header
-│           ├── pages/    # All page components
-│           └── store/    # Zustand auth store
-├── docker-compose.yml    # Local dev services
-├── tasks-summary.md      # Sprint roadmap
-└── deep-research-report.md  # Architecture design doc
-```
+See `.kamal/deploy.yml` for server configuration.
