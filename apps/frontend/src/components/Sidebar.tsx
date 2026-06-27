@@ -8,6 +8,7 @@ import {
   LogOut, 
   Ship, 
   Users, 
+  GitBranch,
   Settings
 } from 'lucide-react';
 
@@ -86,7 +87,7 @@ export default function Sidebar() {
         ))}
 
         {/* Admin section — visible to admins */}
-        {(user?.role === 'SUPER_ADMIN' || user?.role === 'COMPANY_ADMIN') && (
+        {(user?.role === 'SUPER_ADMIN' || user?.role === 'COMPANY_ADMIN' || user?.role === 'FRANCHISE_ADMIN') && (
           <div className="pt-4 mt-4 border-t border-slate-800 space-y-1.5">
             <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
               Administration
@@ -105,6 +106,20 @@ export default function Sidebar() {
               Users Directory
             </NavLink>
             <NavLink
+              to="/admin/franchises"
+              className={({ isActive }) =>
+                `flex items-center px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 group ${
+                  isActive
+                    ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
+                }`
+              }
+            >
+              <GitBranch className="mr-3 h-5 w-5 shrink-0" />
+              Franchise Network
+            </NavLink>
+            {(user?.role === 'SUPER_ADMIN' || user?.role === 'COMPANY_ADMIN') && (
+            <NavLink
               to="/admin/settings"
               className={({ isActive }) =>
                 `flex items-center px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 group ${
@@ -117,6 +132,7 @@ export default function Sidebar() {
               <Settings className="mr-3 h-5 w-5 shrink-0" />
               Global Settings
             </NavLink>
+            )}
           </div>
         )}
       </nav>

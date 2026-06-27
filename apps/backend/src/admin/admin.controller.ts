@@ -8,7 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { AdminService, WalletRechargeDto } from './admin.service';
+import { AdminService, WalletRechargeDto, CreateFranchiseDto, CreateBranchDto } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserRole } from '@prisma/client';
@@ -79,6 +79,15 @@ export class AdminController {
     return this.adminService.getFranchises(role, companyId, franchiseId);
   }
 
+  @Post('franchises')
+  @ApiOperation({ summary: 'Create a new franchise' })
+  createFranchise(
+    @CurrentUser('role') role: UserRole,
+    @Body() dto: CreateFranchiseDto,
+  ) {
+    return this.adminService.createFranchise(role, dto);
+  }
+
   // ── Branches ───────────────────────────────────────────
   @Get('branches')
   @ApiOperation({ summary: 'List branches (scoped by role)' })
@@ -89,5 +98,14 @@ export class AdminController {
     @CurrentUser('branchId') branchId?: string,
   ) {
     return this.adminService.getBranches(role, companyId, franchiseId, branchId);
+  }
+
+  @Post('branches')
+  @ApiOperation({ summary: 'Create a new branch' })
+  createBranch(
+    @CurrentUser('role') role: UserRole,
+    @Body() dto: CreateBranchDto,
+  ) {
+    return this.adminService.createBranch(role, dto);
   }
 }

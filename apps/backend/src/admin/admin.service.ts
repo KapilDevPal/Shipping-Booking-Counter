@@ -70,6 +70,64 @@ export class UpdateWalletLimitDto {
   creditLimit?: number;
 }
 
+export class CreateFranchiseDto {
+  @IsString()
+  companyId!: string;
+
+  @IsString()
+  code!: string;
+
+  @IsString()
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+}
+
+export class CreateBranchDto {
+  @IsString()
+  franchiseId!: string;
+
+  @IsString()
+  code!: string;
+
+  @IsString()
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  pincode?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+}
+
 @Injectable()
 export class AdminService {
   constructor(private prisma: PrismaService) {}
@@ -280,6 +338,65 @@ export class AdminService {
   // ─────────────────────────────────────────────────────
   // Global Stats
   // ─────────────────────────────────────────────────────
+
+  async createFranchise(role: UserRole, dto: CreateFranchiseDto) {
+    if (role !== UserRole.SUPER_ADMIN && role !== UserRole.COMPANY_ADMIN) {
+      throw new ForbiddenException('Only admins can create franchises');
+    }
+    const company = await this.prisma.company.findUnique({ where: { id: dto.companyId } });
+    if (!company) throw new NotFoundException('Company not found');
+
+    // Check unique code within company
+    const existing = await this.prisma.franchise.findUnique({
+      where: { companyId_code: { companyId: dto.companyId, code: dto.code } },
+    });
+    if (existing) throw new BadRequestException(`Franchise code "${dto.code}" already exists in this company`);
+
+    return this.prisma.franchise.create({
+      data: {
+        companyId: dto.companyId,
+        code: dto.code,
+        name: dto.name,
+        address: dto.address,
+        phone: dto.phone,
+        email: dto.email,
+      },
+      include: {
+        company: { select: { name: true, code: true } },
+        _count: { select: { branches: true, users: true } },
+      },
+    });
+  }
+
+  async createBranch(role: UserRole, dto: CreateBranchDto) {
+    if (
+      role !== UserRole.SUPER_ADMIN &&
+      role !== UserRole.COMPANY_ADMIN &&
+      role !== UserRole.FRANCHISE_ADMIN
+    ) {
+      throw new ForbiddenException('Insufficient permissions to create branches');
+    }
+    const franchise = await this.prisma.franchise.findUnique({ where: { id: dto.franchiseId } });
+    if (!franchise) throw new NotFoundException('Franchise not found');
+
+    return this.prisma.branch.create({
+      data: {
+        franchiseId: dto.franchiseId,
+        code: dto.code,
+        name: dto.name,
+        address: dto.address,
+        city: dto.city,
+        state: dto.state,
+        pincode: dto.pincode,
+        phone: dto.phone,
+        email: dto.email,
+      },
+      include: {
+        franchise: { include: { company: { select: { name: true } } } },
+        _count: { select: { users: true, shipments: true } },
+      },
+    });
+  }
 
   async getGlobalStats(role: UserRole, companyId?: string) {
     if (role === UserRole.SUPER_ADMIN) {
