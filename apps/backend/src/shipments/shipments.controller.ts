@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ShipmentsService, BookShipmentDto } from './shipments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -62,5 +62,15 @@ export class ShipmentsController {
       'Content-Length': pdfBuffer.length,
     });
     res.end(pdfBuffer);
+  }
+
+  @Patch(':id/cancel')
+  @ApiOperation({ summary: 'Cancel/void a shipment booking and refund company wallet' })
+  cancelShipment(
+    @CurrentUser('role') role: UserRole,
+    @CurrentUser('companyId') companyId: string | null,
+    @Param('id') id: string
+  ) {
+    return this.shipmentsService.cancelShipment(id, role, companyId);
   }
 }

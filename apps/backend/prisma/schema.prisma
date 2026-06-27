@@ -113,6 +113,9 @@ model Franchise {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  commission  Float @default(0.0)
+  creditLimit Float @default(0.0)
+
   companyId String
   company   Company @relation(fields: [companyId], references: [id])
 

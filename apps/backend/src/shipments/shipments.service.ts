@@ -1,7 +1,7 @@
-import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { IsString, IsNumber, IsOptional, IsBoolean, IsEnum, Min } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
-import { UserRole } from '@prisma/client';
+import { UserRole, ShipmentStatus } from '@prisma/client';
 import PDFDocument from 'pdfkit';
 import { ConfigService } from '@nestjs/config';
 import { format } from 'date-fns';
@@ -511,6 +511,61 @@ export class ShipmentsService {
       doc.fontSize(6).font('Helvetica').fillColor('#64748b').text('Declaration: The shipper certifies that the details of this airwaybill are correct and that the shipment does not contain any dangerous goods.', 15, 342, { width: doc.page.width - 30 });
 
       doc.end();
+    });
+  }
+
+  async cancelShipment(id: string, role: UserRole, companyId: string | null) {
+    const shipment = await this.prisma.shipment.findUnique({
+      where: { id },
+      include: {
+        rates: {
+          where: { isSelected: true },
+        },
+        branch: {
+          include: {
+            franchise: true,
+          },
+        },
+      },
+    });
+
+    if (!shipment) {
+      throw new NotFoundException('Shipment not found');
+    }
+
+    if (shipment.status === ShipmentStatus.CANCELLED) {
+      throw new BadRequestException('Shipment is already cancelled');
+    }
+
+    if (['DELIVERED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(shipment.status)) {
+      throw new BadRequestException(`Cannot cancel a shipment that is already ${shipment.status.toLowerCase().replace('_', ' ')}`);
+    }
+
+    // Role-scoped checks
+    if (role === UserRole.COMPANY_ADMIN && companyId && shipment.branch.franchise.companyId !== companyId) {
+      throw new ForbiddenException('Access denied to this company shipment');
+    }
+
+    const selectedRate = shipment.rates[0];
+    const refundAmount = selectedRate ? selectedRate.totalAmount : 0;
+    const targetCompanyId = shipment.branch.franchise.companyId;
+
+    return await this.prisma.$transaction(async (tx) => {
+      // Update shipment status to CANCELLED
+      const updatedShipment = await tx.shipment.update({
+        where: { id },
+        data: { status: ShipmentStatus.CANCELLED },
+      });
+
+      // Refund to company wallet if there was a selected rate/charge
+      if (refundAmount > 0) {
+        await tx.wallet.update({
+          where: { companyId: targetCompanyId },
+          data: { balance: { increment: refundAmount } },
+        });
+      }
+
+      return updatedShipment;
     });
   }
 }
