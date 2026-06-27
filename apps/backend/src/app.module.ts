@@ -10,6 +10,7 @@ import { CompaniesModule } from './companies/companies.module';
 import { LocationsModule } from './locations/locations.module';
 import { RatesModule } from './rates/rates.module';
 import { FlightGoModule } from './integrations/flightgo/flightgo.module';
+import { DhlModule } from './integrations/dhl/dhl.module';
 import { ShipmentsModule } from './shipments/shipments.module';
 import { AdminModule } from './admin/admin.module';
 
@@ -24,6 +25,7 @@ import { AdminModule } from './admin/admin.module';
     LocationsModule,
     RatesModule,
     FlightGoModule,
+    DhlModule,
     ShipmentsModule,
     AdminModule,
   ],
@@ -31,3 +33,4 @@ import { AdminModule } from './admin/admin.module';
   providers: [AppService],
 })
 export class AppModule {}
+

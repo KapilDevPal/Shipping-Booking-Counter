@@ -1,15 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { format } from 'date-fns';
 import { FlightGoService } from '../integrations/flightgo/flightgo.service';
+import { DhlService } from '../integrations/dhl/dhl.service';
 import { CheckRatesDto } from './dto/check-rates.dto';
 
 @Injectable()
 export class RatesService {
+  private readonly logger = new Logger(RatesService.name);
   private readonly apiKey: string;
 
   constructor(
     private flightGoService: FlightGoService,
+    private dhlService: DhlService,
     private config: ConfigService,
   ) {
     this.apiKey = config.get<string>('FLIGHTGO_API_KEY', '');
@@ -47,30 +50,73 @@ export class RatesService {
       dimensions: dimensionsObj,
     };
 
-    const flightGoRates = await this.flightGoService.getRates(this.apiKey, rateRequest as any);
+    const ratePromises = [
+      // 1. FlightGo Rate Request
+      this.flightGoService.getRates(this.apiKey, rateRequest as any)
+        .then((flightGoRates) => {
+          return flightGoRates.map((r) => ({
+            partnerCode: 'FLIGHTGO',
+            partnerName: r.company.name,
+            serviceCode: r.company.service_code,
+            serviceName: `${r.company.name} (${r.company.branch_name})`,
+            rate: r.rate.Rate,
+            tax: r.rate['IGST (18%)'],
+            totalAmount: r.rate['Grand Total'],
+            transitDays: 3,
+          }));
+        })
+        .catch((err) => {
+          this.logger.error(`Error checking FlightGo rates: ${err.message}`);
+          return [];
+        }),
 
-    // Normalize response into a consistent format matching the frontend's RateQuote interface
-    const normalized = flightGoRates.map((r) => ({
-      partnerCode: 'FLIGHTGO',
-      partnerName: r.company.name,
-      serviceCode: r.company.service_code,
-      serviceName: `${r.company.name} (${r.company.branch_name})`,
-      rate: r.rate.Rate,
-      tax: r.rate['IGST (18%)'],
-      totalAmount: r.rate['Grand Total'],
-      transitDays: 3, // FlightGo default transit days
-    }));
+      // 2. DHL Rate Request
+      this.dhlService.getRates(dto)
+        .then((dhlRates) => {
+          return dhlRates.map((r) => ({
+            partnerCode: 'DHL',
+            partnerName: 'DHL Express',
+            serviceCode: r.serviceCode,
+            serviceName: r.serviceName,
+            rate: r.rate,
+            tax: r.tax,
+            totalAmount: r.totalAmount,
+            transitDays: r.transitDays,
+          }));
+        })
+        .catch((err) => {
+          this.logger.error(`Error checking DHL rates: ${err.message}`);
+          return [];
+        }),
+    ];
+
+    const results = await Promise.all(ratePromises);
+    const combined = [...results[0], ...results[1]];
 
     // Sort by totalAmount (cheapest first)
-    normalized.sort((a, b) => a.totalAmount - b.totalAmount);
+    combined.sort((a, b) => a.totalAmount - b.totalAmount);
+
+    // Find cheapest & fastest across all
+    let cheapest = combined[0] || null;
+    let fastest = combined[0] || null;
+
+    combined.forEach((q) => {
+      if (cheapest && q.totalAmount < cheapest.totalAmount) {
+        cheapest = q;
+      }
+      if (fastest && q.transitDays < fastest.transitDays) {
+        fastest = q;
+      }
+    });
 
     return {
       status: 'success',
       data: {
-        rates: normalized,
-        cheapest: normalized[0] || null,
-        fastest: normalized[0] || null,
+        rates: combined,
+        cheapest,
+        fastest,
       },
     };
   }
 }
+

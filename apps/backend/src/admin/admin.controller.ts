@@ -8,7 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { AdminService, WalletRechargeDto, CreateFranchiseDto, CreateBranchDto } from './admin.service';
+import { AdminService, WalletRechargeDto, CreateFranchiseDto, CreateBranchDto, CreateUserDto } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserRole } from '@prisma/client';
@@ -47,6 +47,28 @@ export class AdminController {
     @Param('id') targetUserId: string,
   ) {
     return this.adminService.toggleUserStatus(role, targetUserId);
+  }
+
+  @Post('users')
+  @ApiOperation({ summary: 'Create a new user (Super Admin / Company Admin / Franchise Admin)' })
+  createUser(
+    @CurrentUser('role') role: UserRole,
+    @CurrentUser('companyId') companyId: string | undefined,
+    @Body() dto: CreateUserDto,
+  ) {
+    return this.adminService.createUser(role, companyId, dto);
+  }
+
+  // ── Analytics ────────────────────────────────────────────
+  @Get('analytics')
+  @ApiOperation({ summary: 'Get analytics data (bookings per day, revenue, carrier breakdown)' })
+  getAnalytics(
+    @CurrentUser('role') role: UserRole,
+    @CurrentUser('companyId') companyId?: string,
+    @CurrentUser('franchiseId') franchiseId?: string,
+    @CurrentUser('branchId') branchId?: string,
+  ) {
+    return this.adminService.getAnalytics(role, companyId, franchiseId, branchId);
   }
 
   // ── Companies ──────────────────────────────────────────

@@ -7,6 +7,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '@prisma/client';
 import { IsString, IsNumber, IsOptional, IsBoolean, IsEmail, IsEnum, Min } from 'class-validator';
+import * as bcrypt from 'bcrypt';
+import { subDays, format, startOfDay, endOfDay } from 'date-fns';
 
 export class CreateUserDto {
   @IsEmail()
@@ -441,5 +443,142 @@ export class AdminService {
     }
 
     throw new ForbiddenException('Access denied');
+  }
+
+  // ─────────────────────────────────────────────────────
+  // Create User
+  // ─────────────────────────────────────────────────────
+
+  async createUser(requestingRole: UserRole, requestingCompanyId: string | undefined, dto: CreateUserDto) {
+    // Permission check
+    if (requestingRole === UserRole.BRANCH_STAFF) {
+      throw new ForbiddenException('Branch staff cannot create users');
+    }
+    if (requestingRole === UserRole.FRANCHISE_ADMIN && dto.role === UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException('Franchise admin cannot create super admins');
+    }
+    if (requestingRole === UserRole.COMPANY_ADMIN && dto.role === UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException('Company admin cannot create super admins');
+    }
+
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (existing) throw new BadRequestException('A user with this email already exists');
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    const user = await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        name: dto.name,
+        passwordHash: hashedPassword,
+        role: dto.role,
+        companyId: dto.companyId || requestingCompanyId || null,
+        franchiseId: dto.franchiseId || null,
+        branchId: dto.branchId || null,
+        isActive: true,
+      },
+      select: {
+        id: true, email: true, name: true, role: true, isActive: true, createdAt: true,
+        companyId: true, franchiseId: true, branchId: true,
+        company: { select: { name: true, code: true } },
+        franchise: { select: { name: true, code: true } },
+        branch: { select: { name: true, code: true } },
+      },
+    });
+
+    return user;
+  }
+
+  // ─────────────────────────────────────────────────────
+  // Analytics
+  // ─────────────────────────────────────────────────────
+
+  async getAnalytics(role: UserRole, companyId?: string, franchiseId?: string, branchId?: string) {
+    const today = new Date();
+    const thirtyDaysAgo = subDays(today, 29);
+
+    // Build shipment where clause based on role
+    let shipmentWhere: any = {
+      createdAt: { gte: startOfDay(thirtyDaysAgo), lte: endOfDay(today) },
+    };
+
+    if (role === UserRole.COMPANY_ADMIN && companyId) {
+      shipmentWhere.branch = { franchise: { companyId } };
+    } else if (role === UserRole.FRANCHISE_ADMIN && franchiseId) {
+      shipmentWhere.branch = { franchiseId };
+    } else if (role === UserRole.BRANCH_STAFF && branchId) {
+      shipmentWhere.branchId = branchId;
+    }
+    // SUPER_ADMIN gets all (no extra filter)
+
+    // Fetch all shipments in date range with selected rates
+    const shipments = await this.prisma.shipment.findMany({
+      where: shipmentWhere,
+      include: {
+        rates: {
+          where: { isSelected: true },
+          include: { partner: true },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Build per-day bookings and revenue map (last 30 days)
+    const dayMap = new Map<string, { bookings: number; revenue: number }>();
+    for (let i = 0; i < 30; i++) {
+      const d = format(subDays(today, 29 - i), 'MMM d');
+      dayMap.set(d, { bookings: 0, revenue: 0 });
+    }
+
+    // Carrier breakdown map
+    const carrierMap = new Map<string, number>();
+
+    for (const s of shipments) {
+      const dayKey = format(new Date(s.createdAt), 'MMM d');
+      if (dayMap.has(dayKey)) {
+        const entry = dayMap.get(dayKey)!;
+        entry.bookings += 1;
+        const selectedRate = s.rates[0];
+        if (selectedRate) {
+          entry.revenue += selectedRate.totalAmount;
+        }
+      }
+      const partnerName = s.rates[0]?.partner?.name || 'Unknown';
+      carrierMap.set(partnerName, (carrierMap.get(partnerName) || 0) + 1);
+    }
+
+    const chartData = Array.from(dayMap.entries()).map(([date, v]) => ({
+      date,
+      bookings: v.bookings,
+      revenue: Math.round(v.revenue * 100) / 100,
+    }));
+
+    const carrierBreakdown = Array.from(carrierMap.entries()).map(([name, count]) => ({ name, count }));
+
+    // Recent shipments (last 10)
+    const recentShipments = shipments.slice(-10).reverse().map(s => ({
+      id: s.id,
+      awbNo: s.awbNo,
+      toCountry: s.toCountry,
+      toCity: s.toCity,
+      weight: s.weight,
+      status: s.status,
+      carrier: s.rates[0]?.partner?.name || 'N/A',
+      totalAmount: s.rates[0]?.totalAmount || 0,
+      createdAt: s.createdAt,
+    }));
+
+    const totalRevenue = shipments.reduce((sum, s) => sum + (s.rates[0]?.totalAmount || 0), 0);
+
+    return {
+      chartData,
+      carrierBreakdown,
+      recentShipments,
+      summary: {
+        totalShipments: shipments.length,
+        totalRevenue: Math.round(totalRevenue * 100) / 100,
+        daysRange: 30,
+      },
+    };
   }
 }

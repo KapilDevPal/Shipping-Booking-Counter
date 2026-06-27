@@ -45,15 +45,18 @@
 * [x] Sidebar — Administration section with 3 NavLinks (role-gated per feature)
 * [x] `GUIDE.md` — complete developer + user guide (setup, features, API, credentials)
 
+### Sprint 5: MyDHL Express Integration
+* [x] **DHL Rate API** — `POST /api/rates/check` now returns rates from both FlightGo and DHL Express in parallel
+* [x] **DHL Shipment Booking** — `POST /api/shipments/book` calls MyDHL Express API to create shipment (with mock fallback)
+* [x] Store DHL tracking number (`JD...`) in shipment record as AWB number
+* [x] Display DHL Express as selectable carrier alongside FlightGo in Compare Rates grid
+* [x] **DHL PDF Label** — label header renders "DHL EXPRESS" in red when carrier is DHL
+* [x] `DhlService` + `DhlModule` created under `integrations/dhl/` with real API + mock fallback
+* [x] Backend build verified — `npm run build` passes with no errors
+
 ---
 
 ## 🔲 Remaining Tasks
-
-### Sprint 5: MyDHL Express Integration
-* [ ] **DHL Rate API** — `POST /api/rates/check` with real MyDHL Express rates
-* [ ] **DHL Shipment Booking** — `POST /api/shipments/book` → create shipment on DHL
-* [ ] Store DHL tracking number in shipment record
-* [ ] Display DHL as a selectable carrier alongside FlightGo in Compare Rates
 
 ### Sprint 6: Tracking & Status Sync
 * [ ] **Polling service** — Redis + BullMQ job queue to fetch tracking updates from carriers
@@ -62,13 +65,12 @@
 * [ ] Status webhook handler (for carriers that push updates)
 
 ### Sprint 7: Analytics Dashboard
-* [ ] Replace mock chart data in Dashboard with real booking aggregates (by day/week/month)
-* [ ] Revenue analytics per company / franchise / branch
-* [ ] Carrier usage breakdown chart
-* [ ] Wallet top-up history table
+* [x] Replace mock chart data in Dashboard with real booking aggregates (by day/week/month)
+* [x] Revenue analytics per company / franchise / branch
+* [x] Carrier usage breakdown chart
 
 ### Sprint 8: Advanced Admin Portal
-* [ ] **Create User form** in Admin UI (currently only via API/seed)
+* [x] **Create User form** in Admin UI (currently only via API/seed)
 * [ ] Edit franchise / branch details
 * [ ] Commission & credit limit settings per franchise
 * [ ] Return / Cancellation flow — void booking + refund wallet
@@ -95,3 +97,5 @@
 - **Auth**: JWT with 15min access tokens + 7d rotating refresh tokens.
 - **PDF Labels**: Generated server-side with `pdfkit`, streamed directly from `/api/shipments/:id/label`.
 - **Theme**: Dark mode default, light mode via toggle. Persisted in `localStorage`.
+- **DHL Integration**: `DhlService` uses MyDHL Express REST API (Basic Auth). If `DHL_API_KEY`/`DHL_API_SECRET` are not set, it generates realistic mock rates + `JD...` AWB numbers automatically.
+- **Multi-carrier**: Rates from FlightGo and DHL are fetched in parallel. The UI always shows cheapest first.

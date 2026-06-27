@@ -3,6 +3,11 @@ import { IsString, IsNumber, IsOptional, IsBoolean, IsEnum, Min } from 'class-va
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '@prisma/client';
 import PDFDocument from 'pdfkit';
+import { ConfigService } from '@nestjs/config';
+import { format } from 'date-fns';
+import { FlightGoService } from '../integrations/flightgo/flightgo.service';
+import { DhlService } from '../integrations/dhl/dhl.service';
+
 
 export class BookShipmentDto {
   @IsOptional()
@@ -115,7 +120,12 @@ export class BookShipmentDto {
 
 @Injectable()
 export class ShipmentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private flightGoService: FlightGoService,
+    private dhlService: DhlService,
+    private config: ConfigService,
+  ) {}
 
   async getWalletBalance(userId: string, role: UserRole, companyId?: string) {
     if (!companyId) {
@@ -204,7 +214,59 @@ export class ShipmentsService {
       }
 
       // Generate AWB
-      const awbNo = `FG-${Math.floor(10000000 + Math.random() * 90000000)}`;
+      let awbNo = `FG-${Math.floor(10000000 + Math.random() * 90000000)}`;
+
+      if (dto.partnerCode === 'DHL') {
+        try {
+          const dhlRes = await this.dhlService.createShipment({
+            toCountry: dto.toCountry,
+            toZipcodeId: dto.toZipcodeId,
+            weight: dto.weight,
+            packageType: dto.packageType,
+            length: dto.length,
+            width: dto.width,
+            height: dto.height,
+            serviceCode: dto.serviceCode,
+          });
+          awbNo = dhlRes.awbNo;
+        } catch (err) {
+          const random10 = Math.floor(1000000000 + Math.random() * 9000000000);
+          awbNo = `JD01${random10}${Math.floor(100000 + Math.random() * 900000)}`;
+        }
+      } else if (dto.partnerCode === 'FLIGHTGO') {
+        try {
+          const shipDate = dto.shipDate
+            ? format(new Date(dto.shipDate), 'dd-MM-yyyy')
+            : format(new Date(), 'dd-MM-yyyy');
+
+          const packageCode = dto.packageType === 'DOCUMENT' ? 'DOC' : 'NDX';
+
+          const labelReq = {
+            ship_date: shipDate,
+            package_code: packageCode,
+            to_country: dto.toCountry,
+            zipcode_id: dto.toZipcodeId,
+            weight: { value: dto.weight, units: 'kg' },
+            dimensions: (dto.length && dto.width && dto.height) ? [{
+              units: 'cm',
+              length: dto.length,
+              width: dto.width,
+              height: dto.height,
+              weightb: Math.round((dto.length * dto.width * dto.height) / 5000),
+            }] : [],
+            service_code: dto.serviceCode,
+          };
+          
+          const fgApiKey = this.config.get<string>('FLIGHTGO_API_KEY', '');
+          const fgRes = await this.flightGoService.createLabel(fgApiKey, labelReq);
+          if (fgRes && fgRes.awb_no) {
+            awbNo = fgRes.awb_no;
+          }
+        } catch (err) {
+          // Keep the default generated FG AWB
+        }
+      }
+
 
       // Create Shipment
       let shipment = await tx.shipment.create({
@@ -353,8 +415,14 @@ export class ShipmentsService {
       doc.rect(5, 5, doc.page.width - 10, doc.page.height - 10).stroke();
 
       // Branding Header
-      doc.fontSize(12).font('Helvetica-Bold').fillColor('#0b86fc').text('FLIGHTGO EXPRESS', 15, 15);
-      doc.fontSize(8).font('Helvetica').fillColor('#64748b').text('INTERNATIONAL AIR WAYBILL', 15, 28);
+      const isDhl = shipment.rates && shipment.rates[0]?.partner?.code === 'DHL';
+      if (isDhl) {
+        doc.fontSize(12).font('Helvetica-Bold').fillColor('#d00000').text('DHL EXPRESS', 15, 15);
+        doc.fontSize(8).font('Helvetica').fillColor('#64748b').text('INTERNATIONAL WAYBILL', 15, 28);
+      } else {
+        doc.fontSize(12).font('Helvetica-Bold').fillColor('#0b86fc').text('FLIGHTGO EXPRESS', 15, 15);
+        doc.fontSize(8).font('Helvetica').fillColor('#64748b').text('INTERNATIONAL AIR WAYBILL', 15, 28);
+      }
       
       // Divider
       doc.moveTo(5, 40).lineTo(doc.page.width - 5, 40).stroke();

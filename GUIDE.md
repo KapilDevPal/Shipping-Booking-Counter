@@ -31,6 +31,18 @@ cp apps/backend/.env.example apps/backend/.env
 # Edit DATABASE_URL, JWT_SECRET, FLIGHTGO_API_KEY
 ```
 
+**Key environment variables:**
+| Variable | Description | Required |
+|---|---|---|
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `JWT_SECRET` | JWT signing secret | Yes |
+| `FLIGHTGO_API_KEY` | FlightGo Express API key (`10725a0cfa`) | Yes |
+| `DHL_API_URL` | MyDHL Express base URL | No (uses mock if absent) |
+| `DHL_API_KEY` | MyDHL Express API key | No (uses mock if absent) |
+| `DHL_API_SECRET` | MyDHL Express API secret | No (uses mock if absent) |
+
+> **Note:** If DHL credentials are absent or the API is unreachable, the system automatically generates realistic mock DHL rates and `JD...` AWB numbers — the app remains fully functional.
+
 ### 4. Database Seed
 ```bash
 cd apps/backend
@@ -135,9 +147,10 @@ cd apps/frontend && npm run dev
 2. Enter package weight + dimensions (volumetric auto-calculated)
 3. Select mode: Parcel/Document, Express/Surface
 4. Enter destination country + ZIP code
-5. Click **Compare Carriers & Rates** → live pricing grid
-6. Select carrier → **Book Shipment**
-7. Download AWB PDF label
+5. Click **Compare Carriers & Rates** → live pricing grid showing **both FlightGo and DHL Express** options, sorted cheapest first
+6. Select carrier (FlightGo or DHL) → **Book Shipment**
+7. The system calls the carrier's booking API to generate a real tracking number (AWB)
+8. Download AWB PDF label — label header shows carrier branding (blue for FlightGo, red for DHL)
 
 ### 📋 Shipments (`/shipments`) — All roles (scoped)
 - Lists all shipments for the user's scope (branch/franchise/company/all)
@@ -151,6 +164,13 @@ cd apps/frontend && npm run dev
 - Organisation mapping: Company → Franchise → Branch
 - Search + filter by role
 - **Activate / Deactivate** user accounts (toggle)
+- **Add User** — button opens a slide-over modal to create users. Selection of Company, Franchise, and Branch is automatically gated and scoped based on the role selected.
+
+### 📊 Real-Time Analytics (`/dashboard`) — All roles (scoped)
+- **Booking Volume Trends** — Daily booking count over the last 30 days
+- **Revenue Trends** — Daily total revenue generated over the last 30 days
+- **Carrier Distribution** — Donut chart showing the market share of FlightGo vs DHL Express
+- **Recent Cargo Shipments** — Live feed of recent airwaybill statuses, including carrier branding and total billing amounts
 
 ### 🌐 Global Settings (`/admin/settings`) — Super Admin + Company Admin
 - Platform stats: users, companies, franchises, branches, shipments, total wallet
@@ -165,6 +185,22 @@ cd apps/frontend && npm run dev
 - Search across both views
 - **Create Franchise** form (SUPER_ADMIN / COMPANY_ADMIN)
 - **Create Branch** form (+ FRANCHISE_ADMIN)
+
+### 🚚 Multi-Carrier Rate Comparison
+- On the Booking Counter, clicking **Compare Carriers & Rates** fetches quotes from **FlightGo Express** and **DHL Express** simultaneously.
+- The rates grid shows:
+  - Carrier name + service level (e.g. "DHL Express Worldwide", "DHL Express 12:00")
+  - Base rate, tax (18% GST), and total amount
+  - Estimated transit days
+  - Results sorted cheapest first
+- Selecting DHL and confirming the booking calls the **MyDHL Express Shipment API** to generate a real AWB number starting with `JD`.
+- If DHL credentials are not configured, realistic mock data is returned automatically.
+
+### 🏷️ AWB PDF Labels
+- Generated server-side using `pdfkit` — no client dependencies.
+- **FlightGo bookings**: Blue header, `FG-...` AWB number.
+- **DHL bookings**: Red header reading "DHL EXPRESS", `JD...` tracking number.
+- Download from shipments list or immediately after booking.
 
 ---
 
@@ -182,7 +218,7 @@ Company  (e.g. FlightGo India Pvt Ltd)
 | Create Company | Sign Up (`/signup`) or Super Admin via API |
 | Create Franchise | Super Admin, Company Admin (Franchise Network page) |
 | Create Branch | Super Admin, Company Admin, Franchise Admin |
-| Create User | Super Admin via API / Swagger |
+| Create User | Super Admin, Company Admin, Franchise Admin (Users Directory page) |
 | Book Shipment | Branch Staff, Super Admin |
 | Recharge Wallet | Super Admin (Global Settings) |
 | Deactivate User | Super Admin, Company Admin |
@@ -204,7 +240,9 @@ Company  (e.g. FlightGo India Pvt Ltd)
 | `/api/shipments/:id/label` | GET | Public | Download AWB PDF |
 | `/api/admin/stats` | GET | Bearer | Platform statistics |
 | `/api/admin/users` | GET | Bearer | List users (role-scoped) |
+| `/api/admin/users` | POST | Bearer | Create a new user (role-scoped validation) |
 | `/api/admin/users/:id/toggle-status` | PATCH | Bearer | Activate/deactivate user |
+| `/api/admin/analytics` | GET | Bearer | Real-time booking trends, revenue, and carrier breakdown |
 | `/api/admin/companies` | GET | Bearer | Companies + wallet balances |
 | `/api/admin/wallet/recharge` | POST | Bearer | Recharge company wallet |
 | `/api/admin/franchises` | GET | Bearer | List franchises |

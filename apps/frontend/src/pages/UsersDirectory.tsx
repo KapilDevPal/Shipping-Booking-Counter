@@ -13,6 +13,9 @@ import {
   UserCog,
   CheckCircle2,
   XCircle,
+  Plus,
+  Loader2,
+  X
 } from 'lucide-react';
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
@@ -34,6 +37,19 @@ export default function UsersDirectory() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [form, setForm] = useState({
+    email: '',
+    name: '',
+    password: '',
+    role: 'BRANCH_STAFF',
+    companyId: '',
+    franchiseId: '',
+    branchId: '',
+  });
 
   const { data: users = [], isLoading } = useQuery<any[]>({
     queryKey: ['admin-users'],
@@ -43,10 +59,59 @@ export default function UsersDirectory() {
     },
   });
 
+  // Queries for organisation options (only fetch if modal is open)
+  const { data: companies = [] } = useQuery<any[]>({
+    queryKey: ['admin-companies'],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/companies');
+      return res.data;
+    },
+    enabled: isModalOpen && me?.role === 'SUPER_ADMIN',
+  });
+
+  const { data: franchises = [] } = useQuery<any[]>({
+    queryKey: ['admin-franchises'],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/franchises');
+      return res.data;
+    },
+    enabled: isModalOpen && (me?.role === 'SUPER_ADMIN' || me?.role === 'COMPANY_ADMIN'),
+  });
+
+  const { data: branches = [] } = useQuery<any[]>({
+    queryKey: ['admin-branches'],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/branches');
+      return res.data;
+    },
+    enabled: isModalOpen,
+  });
+
   const toggleMutation = useMutation({
     mutationFn: (userId: string) =>
       apiClient.patch(`/admin/users/${userId}/toggle-status`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
+  });
+
+  const createUserMutation = useMutation({
+    mutationFn: (dto: any) => apiClient.post('/admin/users', dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      setIsModalOpen(false);
+      setErrorMsg('');
+      setForm({
+        email: '',
+        name: '',
+        password: '',
+        role: 'BRANCH_STAFF',
+        companyId: '',
+        franchiseId: '',
+        branchId: '',
+      });
+    },
+    onError: (err: any) => {
+      setErrorMsg(err.response?.data?.message || 'Failed to create user. Please try again.');
+    }
   });
 
   const filtered = users.filter((u: any) => {
@@ -64,16 +129,101 @@ export default function UsersDirectory() {
     admins: users.filter((u: any) => u.role.includes('ADMIN')).length,
   };
 
+  const allowedRoles = {
+    SUPER_ADMIN: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'FRANCHISE_ADMIN', 'BRANCH_STAFF'],
+    COMPANY_ADMIN: ['COMPANY_ADMIN', 'FRANCHISE_ADMIN', 'BRANCH_STAFF'],
+    FRANCHISE_ADMIN: ['BRANCH_STAFF'],
+    BRANCH_STAFF: [],
+  }[me?.role ?? 'BRANCH_STAFF'] || [];
+
+  const handleRoleChange = (role: string) => {
+    setForm(prev => ({
+      ...prev,
+      role,
+      companyId: '',
+      franchiseId: '',
+      branchId: '',
+    }));
+  };
+
+  const handleBranchChange = (branchId: string) => {
+    const selectedBranch = branches.find(b => b.id === branchId);
+    if (selectedBranch) {
+      setForm(prev => ({
+        ...prev,
+        branchId,
+        franchiseId: selectedBranch.franchiseId,
+        companyId: selectedBranch.franchise?.companyId || prev.companyId,
+      }));
+    } else {
+      setForm(prev => ({ ...prev, branchId: '' }));
+    }
+  };
+
+  const handleFranchiseChange = (franchiseId: string) => {
+    const selectedFranchise = franchises.find(f => f.id === franchiseId);
+    if (selectedFranchise) {
+      setForm(prev => ({
+        ...prev,
+        franchiseId,
+        companyId: selectedFranchise.companyId || prev.companyId,
+      }));
+    } else {
+      setForm(prev => ({ ...prev, franchiseId: '' }));
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name || !form.email || !form.password) {
+      setErrorMsg('Please fill in all required fields.');
+      return;
+    }
+
+    const payload: any = {
+      name: form.name,
+      email: form.email,
+      password: form.password,
+      role: form.role,
+    };
+
+    if (form.role === 'COMPANY_ADMIN') {
+      payload.companyId = form.companyId || me?.companyId;
+    } else if (form.role === 'FRANCHISE_ADMIN') {
+      payload.companyId = form.companyId || me?.companyId;
+      payload.franchiseId = form.franchiseId;
+    } else if (form.role === 'BRANCH_STAFF') {
+      payload.companyId = form.companyId || me?.companyId;
+      payload.franchiseId = form.franchiseId;
+      payload.branchId = form.branchId;
+    }
+
+    createUserMutation.mutate(payload);
+  };
+
   return (
-    <div className="space-y-8 animate-fade-in select-none">
+    <div className="space-y-8 animate-fade-in select-none relative">
       {/* Page header */}
-      <div>
-        <h1 className="font-display font-bold text-3xl text-white tracking-tight leading-none mb-2">
-          Users Directory
-        </h1>
-        <p className="text-slate-400 text-sm">
-          Manage platform users, view roles, and control account access.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display font-bold text-3xl text-white tracking-tight leading-none mb-2">
+            Users Directory
+          </h1>
+          <p className="text-slate-400 text-sm">
+            Manage platform users, view roles, and control account access.
+          </p>
+        </div>
+        {allowedRoles.length > 0 && (
+          <div>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all cursor-pointer shadow-lg shadow-brand-500/20"
+            >
+              <Plus size={16} />
+              Add User
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stat cards */}
@@ -111,12 +261,12 @@ export default function UsersDirectory() {
             className="w-full bg-slate-950/60 border border-slate-850 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 overflow-x-auto pb-1 md:pb-0">
           {['ALL', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'FRANCHISE_ADMIN', 'BRANCH_STAFF'].map((r) => (
             <button
               key={r}
               onClick={() => setRoleFilter(r)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
                 roleFilter === r
                   ? 'bg-brand-500 text-white'
                   : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
@@ -253,6 +403,181 @@ export default function UsersDirectory() {
           </table>
         </div>
       </div>
+
+      {/* Slide-over or Popup Modal for adding user */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="glass-panel w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900/90 shadow-2xl overflow-hidden animate-scale-up">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+              <h3 className="font-display font-semibold text-lg text-white">Create New User</h3>
+              <button
+                onClick={() => { setIsModalOpen(false); setErrorMsg(''); }}
+                className="text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {errorMsg && (
+                <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs font-semibold text-rose-400 flex items-center gap-2">
+                  <XCircle size={16} />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                    Full Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={form.name}
+                    onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                    placeholder="Enter full name"
+                  />
+                </div>
+
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                    Email Address <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={form.email}
+                    onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                    placeholder="name@example.com"
+                  />
+                </div>
+
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                    Password <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={form.password}
+                    onChange={(e) => setForm(prev => ({ ...prev, password: e.target.value }))}
+                    className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                    placeholder="Minimum 6 characters"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                    User Role <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={form.role}
+                    onChange={(e) => handleRoleChange(e.target.value)}
+                    className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30 cursor-pointer"
+                  >
+                    {allowedRoles.map((r: string) => (
+                      <option key={r} value={r} className="bg-slate-950 text-slate-100">
+                        {ROLE_LABELS[r]?.label || r}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Conditional Organisation selectors based on role */}
+                {form.role === 'COMPANY_ADMIN' && me?.role === 'SUPER_ADMIN' && (
+                  <div className="col-span-2 animate-fade-in">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Assign Company <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={form.companyId}
+                      onChange={(e) => setForm(prev => ({ ...prev, companyId: e.target.value }))}
+                      className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30 cursor-pointer"
+                    >
+                      <option value="">Select a company</option>
+                      {companies.map((c: any) => (
+                        <option key={c.id} value={c.id} className="bg-slate-950 text-slate-100">
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {form.role === 'FRANCHISE_ADMIN' && (
+                  <div className="col-span-2 animate-fade-in">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Assign Franchise <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={form.franchiseId}
+                      onChange={(e) => handleFranchiseChange(e.target.value)}
+                      className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30 cursor-pointer"
+                    >
+                      <option value="">Select a franchise</option>
+                      {franchises.map((f: any) => (
+                        <option key={f.id} value={f.id} className="bg-slate-950 text-slate-100">
+                          {f.name} {f.company ? `(${f.company.name})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {form.role === 'BRANCH_STAFF' && (
+                  <div className="col-span-2 animate-fade-in">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Assign Branch <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={form.branchId}
+                      onChange={(e) => handleBranchChange(e.target.value)}
+                      className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30 cursor-pointer"
+                    >
+                      <option value="">Select a branch</option>
+                      {branches.map((b: any) => (
+                        <option key={b.id} value={b.id} className="bg-slate-950 text-slate-100">
+                          {b.name} {b.franchise ? `(${b.franchise.name})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => { setIsModalOpen(false); setErrorMsg(''); }}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createUserMutation.isPending}
+                  className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-all cursor-pointer"
+                >
+                  {createUserMutation.isPending ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create User'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
